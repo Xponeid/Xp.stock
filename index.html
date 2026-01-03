@@ -12,7 +12,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* SAMA SEPERTI SEBELUMNYA, DENGAN SEDIKIT PENYESUAIAN LOADING */
         :root { --bg-body: #f3f4f6; --sidebar-bg: #111827; --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); --accent-color: #f59e0b; --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body { height: 100vh; overflow: hidden; background-color: var(--bg-body); }
@@ -22,7 +21,7 @@
         .spinner { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #2563eb; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Login & Layout Styles (Sama) */
+        /* Login & Layout Styles */
         #login-section { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); display: flex; justify-content: center; align-items: center; z-index: 9999; }
         .login-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 40px; width: 90%; max-width: 400px; border-radius: 20px; text-align: center; color: white; }
         .login-input { width: 100%; padding: 14px; margin-bottom:15px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; color: white; }
@@ -46,11 +45,6 @@
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
         th { background: #f9fafb; }
 
-        /* Modal */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; }
-        .modal-overlay.active { display: flex; }
-        .modal-box { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; }
-
         @media (max-width: 768px) { .sidebar { display:none; } .mobile-nav { display:flex; position:fixed; bottom:0; width:100%; background:white; justify-content:space-around; padding:10px; border-top:1px solid #ddd; } }
         @media (min-width: 769px) { .mobile-nav { display:none; } }
     </style>
@@ -62,7 +56,8 @@
         <p style="margin-top:15px; font-weight:600; color:#374151">Menghubungkan ke Database...</p>
     </div>
 
-    <div id="login-section" style="display:none"> <div class="login-card">
+    <div id="login-section" style="display:none"> 
+        <div class="login-card">
             <h2 style="margin-bottom:20px;">Xp one.id</h2>
             <form onsubmit="event.preventDefault(); prosesLogin();">
                 <input type="text" id="username" class="login-input" placeholder="Username" required>
@@ -181,16 +176,15 @@
         import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
         import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 
-        // --- KONFIGURASI FIREBASE ---
-        // PASTE KODE DARI PROJECT SETTINGS FIREBASE ANDA DI SINI
+        // --- KONFIGURASI FIREBASE ASLI ANDA ---
         const firebaseConfig = {
-              apiKey: "AIzaSyAZ_t8LwpbPWARJgkcIMhWj9DwLERPMhPg",
-              authDomain: "inventory-system99.firebaseapp.com",
-              databaseURL: "https://inventory-system99-default-rtdb.asia-southeast1.firebasedatabase.app",
-              projectId: "inventory-system99",
-              storageBucket: "inventory-system99.firebasestorage.app",
-              messagingSenderId: "1034016712208",
-              appId: "1:1034016712208:web:a680050c2359c2bed60c95"
+            apiKey: "AIzaSyAZ_t8LwpbPWARJgkcIMhWj9DwLERPMhPg",
+            authDomain: "inventory-system99.firebaseapp.com",
+            databaseURL: "https://inventory-system99-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "inventory-system99",
+            storageBucket: "inventory-system99.firebasestorage.app",
+            messagingSenderId: "1034016712208",
+            appId: "1:1034016712208:web:a680050c2359c2bed60c95"
         };
 
         // Initialize Firebase
@@ -206,30 +200,27 @@
         let currentUser = null;
 
         // --- SISTEM LOAD DATA (REALTIME LISTENER) ---
-        // Fungsi ini akan berjalan otomatis setiap ada perubahan di database manapun
         function startApp() {
             const dbRef = ref(dbRealtime, '/');
             
             onValue(dbRef, (snapshot) => {
                 const data = snapshot.val();
                 
-                // Matikan loading
+                // Matikan loading saat data diterima
                 document.getElementById('loading-overlay').style.display = 'none';
                 
                 if (data) {
-                    // Update variabel lokal dengan data Cloud
                     db = data.stok_db ? Object.values(data.stok_db) : [];
                     historyMasuk = data.history_masuk ? Object.values(data.history_masuk) : [];
                     historyKeluar = data.history_keluar ? Object.values(data.history_keluar) : [];
                     usersDb = data.users_db ? Object.values(data.users_db) : [{username:'admin', password:'123', name:'Admin Default'}];
                     appSettings = data.settings || { id_prefix: 'XP' };
                 } else {
-                    // Jika database kosong (baru dibuat)
+                    // Database Kosong? Buat Admin default
                     usersDb = [{username:'admin', password:'123', name:'Admin Default'}];
-                    simpanKeCloud('users_db', usersDb); // Inisialisasi admin
+                    simpanKeCloud('users_db', usersDb);
                 }
 
-                // Render ulang tampilan jika user sudah login
                 if (currentUser) {
                     render();
                 } else {
@@ -237,7 +228,7 @@
                     document.getElementById('login-msg').innerText = "Siap! Silakan Login.";
                 }
             }, (error) => {
-                alert("Gagal koneksi database: " + error.message);
+                document.getElementById('loading-overlay').innerHTML = `<p style="color:red; font-weight:bold; text-align:center; padding:20px;">Gagal Koneksi Database!<br>Cek Aturan Rules di Firebase Console.<br>Error: ${error.message}</p>`;
             });
         }
 
@@ -245,13 +236,10 @@
         startApp();
 
         // --- FUNGSI SIMPAN (KE FIREBASE) ---
-        // Kita tidak pakai localStorage.setItem lagi, tapi set() ke Firebase
-        // Agar mudah, kita simpan array full (walau tidak efisien utk data besar, tapi mudah utk pemula)
         function simpanKeCloud(key, dataArray) {
-            // Konversi Array ke Object agar Firebase senang (Firebase lebih suka Object daripada Array murni)
             const dataObj = {};
             dataArray.forEach((item, index) => {
-                // Gunakan ID unik sebagai key jika ada, atau index
+                // Gunakan ID unik sebagai key
                 const k = item.id || item.id_transaksi || item.username || index;
                 dataObj[k] = item;
             });
@@ -260,7 +248,6 @@
             .catch((err) => alert("Gagal simpan: " + err.message));
         }
         
-        // Wrapper agar kode lama mirip
         window.saveAll = function() {
             simpanKeCloud('stok_db', db);
             simpanKeCloud('history_masuk', historyMasuk);
@@ -273,7 +260,6 @@
         window.prosesLogin = function() {
             const u = document.getElementById('username').value;
             const p = document.getElementById('password').value;
-            // Cek ke usersDb yang sudah tersinkron dari Cloud
             const found = usersDb.find(user => user.username === u && user.password === p);
             
             if(found) {
@@ -282,7 +268,7 @@
                 document.getElementById('app-container').classList.add('active');
                 render();
             } else {
-                alert("Username/Password Salah (Atau data belum tersinkron)");
+                alert("Username/Password Salah");
             }
         }
 
@@ -291,8 +277,7 @@
             location.reload();
         }
 
-        // --- CORE INVENTORY FUNCTIONS (Modifikasi untuk memanggil saveAll) ---
-        
+        // --- CORE FUNCTIONS ---
         window.tambahBarang = function() {
             const id = document.getElementById('baru_id').value;
             const nama = document.getElementById('baru_nama').value;
@@ -305,13 +290,11 @@
             
             db.push({ id, nama, stok, harga, satuan, tgl_masuk: tgl });
             if(stok > 0) {
-                historyMasuk.unshift({ id_transaksi: Date.now(), tgl, id, nama, qty: stok, satuan, harga });
+                historyMasuk.unshift({ id_transaksi: "IN-"+Date.now(), tgl, id, nama, qty: stok, satuan, harga });
             }
             
             alert("Tersimpan di Cloud!");
-            window.saveAll(); // Kirim ke Firebase
-            
-            // Reset form
+            window.saveAll();
             document.getElementById('baru_nama').value = '';
             document.getElementById('baru_stok').value = '0';
         }
@@ -326,8 +309,8 @@
             if(item && qty > 0) {
                 item.stok += qty;
                 if(harga) item.harga = harga;
-                historyMasuk.unshift({ id_transaksi: Date.now(), tgl, id, nama: item.nama, qty, satuan: item.satuan, harga: item.harga });
-                window.saveAll(); // Update Cloud
+                historyMasuk.unshift({ id_transaksi: "IN-"+Date.now(), tgl, id, nama: item.nama, qty, satuan: item.satuan, harga: item.harga });
+                window.saveAll();
                 alert("Stok Masuk Tersimpan!");
             }
         }
@@ -342,35 +325,31 @@
             if(item && qty > 0) {
                 if(item.stok < qty) return alert("Stok kurang!");
                 item.stok -= qty;
-                historyKeluar.unshift({ id_transaksi: Date.now(), tgl, id, nama: item.nama, qty, satuan: item.satuan, ket });
-                window.saveAll(); // Update Cloud
+                historyKeluar.unshift({ id_transaksi: "OUT-"+Date.now(), tgl, id, nama: item.nama, qty, satuan: item.satuan, ket });
+                window.saveAll();
                 alert("Stok Keluar Tersimpan!");
             }
         }
 
-        // --- EDIT DAN HAPUS (Logika Sinkronisasi Stok) ---
         window.hapusBarang = function(id) {
-            if(confirm("Hapus barang ini dari database pusat?")) {
+            if(confirm("Hapus barang ini?")) {
                 db = db.filter(x => x.id !== id);
                 window.saveAll();
             }
         }
 
         window.hapusRiwayatMasuk = function(trxId) {
-            if(confirm("Batalkan riwayat masuk ini? Stok akan berkurang.")) {
+            if(confirm("Hapus riwayat? Stok akan berkurang.")) {
                 const trx = historyMasuk.find(x => x.id_transaksi == trxId);
                 const item = db.find(x => x.id == trx.id);
-                if(item) {
-                    item.stok -= trx.qty;
-                    if(item.stok < 0) item.stok = 0;
-                }
+                if(item) { item.stok -= trx.qty; if(item.stok < 0) item.stok = 0; }
                 historyMasuk = historyMasuk.filter(x => x.id_transaksi != trxId);
                 window.saveAll();
             }
         }
 
         window.hapusRiwayatKeluar = function(trxId) {
-            if(confirm("Batalkan riwayat keluar ini? Stok akan kembali.")) {
+            if(confirm("Hapus riwayat? Stok akan kembali.")) {
                 const trx = historyKeluar.find(x => x.id_transaksi == trxId);
                 const item = db.find(x => x.id == trx.id);
                 if(item) item.stok += trx.qty;
@@ -379,17 +358,14 @@
             }
         }
 
-        // --- USER MANAGEMENT ---
         window.tambahUser = function() {
             const u = document.getElementById('new_user').value;
             const p = document.getElementById('new_pass').value;
             const n = document.getElementById('new_name').value;
-            
             if(usersDb.find(x => x.username === u)) return alert("Username ada!");
-            
             usersDb.push({ username: u, password: p, name: n });
             window.saveAll();
-            alert("User ditambahkan ke Database Pusat");
+            alert("User ditambahkan");
         }
         
         window.hapusUser = function(u) {
@@ -405,26 +381,21 @@
             alert("Disimpan");
         }
 
-        // --- RENDER & UI HELPER ---
         function render() {
-            // Set Tanggal Hari ini
             const today = new Date().toISOString().split('T')[0];
             if(!document.getElementById('masuk_tgl').value) {
                 ['masuk_tgl','keluar_tgl','baru_tgl'].forEach(id => document.getElementById(id).value = today);
             }
 
-            // Generate ID Otomatis
             const prefix = appSettings.id_prefix || "XP";
             document.getElementById('setting_prefix').value = prefix;
             const count = db.filter(x => x.id.startsWith(prefix)).length + 1;
             document.getElementById('baru_id').value = prefix + String(count).padStart(3, '0');
 
-            // Select Option
             let opt = '<option value="">-- Pilih --</option>';
             db.forEach(x => opt += `<option value="${x.id}">${x.nama} (Stok: ${x.stok})</option>`);
             document.querySelectorAll('.select-barang').forEach(e => e.innerHTML = opt);
 
-            // Tabel Stok
             document.querySelector('#tabel-stok tbody').innerHTML = db.map(x => `
                 <tr>
                     <td>${x.id}</td><td>${x.nama}</td>
@@ -433,7 +404,6 @@
                     <td><button class="btn-danger" onclick="hapusBarang('${x.id}')"><i class="fas fa-trash"></i></button></td>
                 </tr>`).join('');
             
-            // Tabel Riwayat
             document.querySelector('#tabel-riwayat-masuk tbody').innerHTML = historyMasuk.slice(0,20).map(x => `
                 <tr><td>${x.tgl}</td><td>${x.nama}</td><td>${x.qty}</td>
                 <td><button class="btn-danger" onclick="hapusRiwayatMasuk('${x.id_transaksi}')">X</button></td></tr>`).join('');
@@ -442,16 +412,14 @@
                 <tr><td>${x.tgl}</td><td>${x.nama}</td><td>${x.qty}</td>
                 <td><button class="btn-danger" onclick="hapusRiwayatKeluar('${x.id_transaksi}')">X</button></td></tr>`).join('');
 
-            // Dashboard
             document.getElementById('dash-jenis').innerText = db.length;
             document.getElementById('dash-total').innerText = db.reduce((a,b)=>a+b.stok,0);
             document.getElementById('dash-aset').innerText = "Rp " + new Intl.NumberFormat('id-ID').format(db.reduce((a,b)=>a+(b.stok*b.harga),0));
 
-            // User List
             document.getElementById('user-list').innerHTML = usersDb.map(u => 
                 `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px;">
                     <span>${u.username} (${u.name})</span>
-                    ${u.username !== 'admin' ? `<button onclick="hapusUser('${u.username}')" style="padding:2px 5px; background:red;">Hapus</button>` : ''}
+                    ${u.username !== 'admin' ? `<button onclick="hapusUser('${u.username}')" style="padding:2px 5px; background:red; color:white; border:none; border-radius:3px;">Hapus</button>` : ''}
                 </div>`
             ).join('');
         }
@@ -462,6 +430,11 @@
         }
 
         window.navigasi = function(id, el) {
+            // Proteksi Setting (Client Side Only)
+            if(id === 'setting' && currentUser && currentUser.username !== 'admin') {
+                alert("Akses ditolak. Hanya Admin.");
+                return;
+            }
             document.querySelectorAll('.section').forEach(x => x.style.display = 'none');
             document.querySelectorAll('.nav-link').forEach(x => x.classList.remove('active'));
             document.getElementById(id).style.display = 'block';
@@ -479,7 +452,6 @@
             doc.save('Data_Online.pdf');
         }
 
-        // Global function binding for PDF Autotable
         window.jsPDF = window.jspdf;
     </script>
 </body>
