@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xp one.id - Inventory System (Online)</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* SAMA SEPERTI SEBELUMNYA, DENGAN SEDIKIT PENYESUAIAN LOADING */
+        :root { --bg-body: #f3f4f6; --sidebar-bg: #111827; --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); --accent-color: #f59e0b; --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { height: 100vh; overflow: hidden; background-color: var(--bg-body); }
+        
+        /* Loading Overlay */
+        #loading-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); z-index:10000; display:flex; justify-content:center; align-items:center; flex-direction:column;}
+        .spinner { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #2563eb; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Login & Layout Styles (Sama) */
+        #login-section { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .login-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 40px; width: 90%; max-width: 400px; border-radius: 20px; text-align: center; color: white; }
+        .login-input { width: 100%; padding: 14px; margin-bottom:15px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; color: white; }
+        .btn-login { width: 100%; padding: 14px; background: var(--primary-gradient); border: none; border-radius: 10px; color: white; cursor: pointer; }
+        
+        #app-container { display: none; height: 100vh; width: 100%; }
+        #app-container.active { display: flex; }
+        .sidebar { width: 260px; background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; }
+        .menu { flex: 1; padding: 15px; overflow-y: auto; }
+        .nav-link { display: flex; align-items: center; padding: 14px 15px; margin-bottom: 8px; color: #9ca3af; cursor: pointer; border-radius: 10px; }
+        .nav-link:hover, .nav-link.active { background: var(--primary-gradient); color: white; }
+        .nav-link i { margin-right: 15px; width: 20px; }
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; background: #f9fafb; }
+        
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: var(--card-shadow); margin-bottom: 20px; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom:15px; background: #f9fafb; }
+        button { padding: 12px 25px; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; margin-bottom: 5px;}
+        .btn-primary { background: #2563eb; } .btn-success { background: #10b981; } .btn-danger { background: #ef4444; } .btn-warning { background: #f59e0b; } .btn-dark { background: #1f2937; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f9fafb; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; }
+
+        @media (max-width: 768px) { .sidebar { display:none; } .mobile-nav { display:flex; position:fixed; bottom:0; width:100%; background:white; justify-content:space-around; padding:10px; border-top:1px solid #ddd; } }
+        @media (min-width: 769px) { .mobile-nav { display:none; } }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p style="margin-top:15px; font-weight:600; color:#374151">Menghubungkan ke Database...</p>
+    </div>
+
+    <div id="login-section" style="display:none"> <div class="login-card">
+            <h2 style="margin-bottom:20px;">Xp one.id</h2>
+            <form onsubmit="event.preventDefault(); prosesLogin();">
+                <input type="text" id="username" class="login-input" placeholder="Username" required>
+                <input type="password" id="password" class="login-input" placeholder="Password" required>
+                <button type="submit" class="btn-login">Masuk System</button>
+            </form>
+            <div style="margin-top:20px; font-size:0.75rem; color:#ccc" id="login-msg">Connecting...</div>
+        </div>
+    </div>
+
+    <div id="app-container">
+        <div class="sidebar">
+            <div style="padding:25px; font-size:1.5rem; font-weight:bold; text-align:center;">Xp one<span>.id</span></div>
+            <nav class="menu">
+                <div class="nav-link active" onclick="navigasi('dashboard', this)"><i class="fas fa-chart-pie"></i> Dashboard</div>
+                <div class="nav-link" onclick="navigasi('barang-baru', this)"><i class="fas fa-box"></i> Barang Baru</div>
+                <div class="nav-link" onclick="navigasi('barang-masuk', this)"><i class="fas fa-dolly"></i> Barang Masuk</div>
+                <div class="nav-link" onclick="navigasi('barang-keluar', this)"><i class="fas fa-truck-loading"></i> Barang Keluar</div>
+                <div class="nav-link" onclick="navigasi('laporan', this)"><i class="fas fa-file-invoice"></i> Laporan</div>
+                <div id="nav-setting" class="nav-link" onclick="navigasi('setting', this)"><i class="fas fa-cog"></i> Seting</div>
+            </nav>
+            <div style="padding:20px; cursor:pointer; color:#ef4444; text-align:center;" onclick="prosesLogout()">Keluar</div>
+        </div>
+
+        <div class="main-content">
+            <div id="dashboard" class="section active">
+                <h2>Dashboard <span style="font-size:0.8rem; background:#10b981; color:white; padding:2px 8px; border-radius:10px;">Online Mode</span></h2>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-top:20px;">
+                    <div class="card" style="background:linear-gradient(135deg, #3b82f6, #2563eb); color:white"><h3>Jenis</h3><h2 id="dash-jenis">0</h2></div>
+                    <div class="card" style="background:linear-gradient(135deg, #8b5cf6, #7c3aed); color:white"><h3>Stok Unit</h3><h2 id="dash-total">0</h2></div>
+                    <div class="card" style="background:linear-gradient(135deg, #10b981, #059669); color:white"><h3>Aset</h3><h2 id="dash-aset">Rp 0</h2></div>
+                </div>
+            </div>
+
+            <div id="barang-baru" class="section" style="display:none">
+                <h2>Input Barang Baru</h2>
+                <div class="card">
+                    <input type="date" id="baru_tgl">
+                    <input type="text" id="baru_id" readonly placeholder="ID Otomatis">
+                    <input type="text" id="baru_nama" placeholder="Nama Barang">
+                    <input type="text" id="baru_satuan" placeholder="Satuan (Pcs/Dus)">
+                    <input type="number" id="baru_harga" placeholder="Harga Awal">
+                    <input type="number" id="baru_stok" placeholder="Stok Awal" value="0">
+                    <button class="btn-primary" onclick="tambahBarang()" style="width:100%">Simpan ke Cloud</button>
+                </div>
+            </div>
+
+            <div id="barang-masuk" class="section" style="display:none">
+                <h2>Barang Masuk</h2>
+                <div class="card">
+                    <input type="date" id="masuk_tgl">
+                    <select id="masuk_id" class="select-barang" onchange="autoFillSatuan(this.value)"></select>
+                    <input type="text" id="masuk_satuan" placeholder="Satuan" readonly>
+                    <input type="number" id="masuk_qty" placeholder="Jumlah Masuk">
+                    <input type="number" id="masuk_harga" placeholder="Harga Beli Baru">
+                    <button class="btn-success" onclick="transaksiMasuk()" style="width:100%">Simpan Masuk</button>
+                </div>
+                <div class="card">
+                    <h3>Riwayat Masuk (Realtime)</h3>
+                    <div style="overflow-x:auto"><table id="tabel-riwayat-masuk"><thead><tr><th>Tgl</th><th>Nama</th><th>Qty</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
+                </div>
+            </div>
+
+            <div id="barang-keluar" class="section" style="display:none">
+                <h2>Barang Keluar</h2>
+                <div class="card">
+                    <input type="date" id="keluar_tgl">
+                    <select id="keluar_id" class="select-barang"></select>
+                    <input type="number" id="keluar_qty" placeholder="Jumlah Keluar">
+                    <input type="text" id="keluar_ket" placeholder="Keperluan">
+                    <button class="btn-danger" onclick="transaksiKeluar()" style="width:100%">Proses Keluar</button>
+                </div>
+                <div class="card">
+                    <h3>Riwayat Keluar (Realtime)</h3>
+                    <div style="overflow-x:auto"><table id="tabel-riwayat-keluar"><thead><tr><th>Tgl</th><th>Nama</th><th>Qty</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
+                </div>
+            </div>
+
+            <div id="laporan" class="section" style="display:none">
+                <h2>Data Stok</h2>
+                <button class="btn-dark" onclick="cetakPDF()">Download PDF</button>
+                <div class="card" style="margin-top:10px">
+                    <div style="overflow-x:auto"><table id="tabel-stok"><thead><tr><th>ID</th><th>Nama</th><th>Stok</th><th>Harga</th><th>Aset</th><th>Aksi</th></tr></thead><tbody></tbody></table></div>
+                </div>
+            </div>
+
+            <div id="setting" class="section" style="display:none">
+                <h2>Pengaturan</h2>
+                <div class="card">
+                    <h3>Prefix ID</h3>
+                    <input type="text" id="setting_prefix">
+                    <button class="btn-primary" onclick="simpanPrefix()">Simpan</button>
+                </div>
+                <div class="card">
+                    <h3>User Management</h3>
+                    <input type="text" id="new_user" placeholder="Username">
+                    <input type="text" id="new_pass" placeholder="Password">
+                    <input type="text" id="new_name" placeholder="Nama Lengkap">
+                    <button class="btn-success" onclick="tambahUser()">Tambah User</button>
+                    <div style="margin-top:10px" id="user-list"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mobile-nav">
+             <div onclick="navigasi('dashboard', this)"><i class="fas fa-home"></i></div>
+             <div onclick="navigasi('barang-masuk', this)"><i class="fas fa-arrow-down"></i></div>
+             <div onclick="navigasi('barang-keluar', this)"><i class="fas fa-arrow-up"></i></div>
+             <div onclick="navigasi('setting', this)"><i class="fas fa-cog"></i></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 1. IMPORT FIREBASE
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+
+        // --- KONFIGURASI FIREBASE ---
+        // PASTE KODE DARI PROJECT SETTINGS FIREBASE ANDA DI SINI
+        const firebaseConfig = {
+              apiKey: "AIzaSyAZ_t8LwpbPWARJgkcIMhWj9DwLERPMhPg",
+              authDomain: "inventory-system99.firebaseapp.com",
+              databaseURL: "https://inventory-system99-default-rtdb.asia-southeast1.firebasedatabase.app",
+              projectId: "inventory-system99",
+              storageBucket: "inventory-system99.firebasestorage.app",
+              messagingSenderId: "1034016712208",
+              appId: "1:1034016712208:web:a680050c2359c2bed60c95"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const dbRealtime = getDatabase(app);
+
+        // VARIABEL GLOBAL (Diisi dari Database Cloud)
+        let db = [];
+        let historyMasuk = [];
+        let historyKeluar = [];
+        let usersDb = [];
+        let appSettings = { id_prefix: 'XP' };
+        let currentUser = null;
+
+        // --- SISTEM LOAD DATA (REALTIME LISTENER) ---
+        // Fungsi ini akan berjalan otomatis setiap ada perubahan di database manapun
+        function startApp() {
+            const dbRef = ref(dbRealtime, '/');
+            
+            onValue(dbRef, (snapshot) => {
+                const data = snapshot.val();
+                
+                // Matikan loading
+                document.getElementById('loading-overlay').style.display = 'none';
+                
+                if (data) {
+                    // Update variabel lokal dengan data Cloud
+                    db = data.stok_db ? Object.values(data.stok_db) : [];
+                    historyMasuk = data.history_masuk ? Object.values(data.history_masuk) : [];
+                    historyKeluar = data.history_keluar ? Object.values(data.history_keluar) : [];
+                    usersDb = data.users_db ? Object.values(data.users_db) : [{username:'admin', password:'123', name:'Admin Default'}];
+                    appSettings = data.settings || { id_prefix: 'XP' };
+                } else {
+                    // Jika database kosong (baru dibuat)
+                    usersDb = [{username:'admin', password:'123', name:'Admin Default'}];
+                    simpanKeCloud('users_db', usersDb); // Inisialisasi admin
+                }
+
+                // Render ulang tampilan jika user sudah login
+                if (currentUser) {
+                    render();
+                } else {
+                    document.getElementById('login-section').style.display = 'flex';
+                    document.getElementById('login-msg').innerText = "Siap! Silakan Login.";
+                }
+            }, (error) => {
+                alert("Gagal koneksi database: " + error.message);
+            });
+        }
+
+        // Jalankan Listener
+        startApp();
+
+        // --- FUNGSI SIMPAN (KE FIREBASE) ---
+        // Kita tidak pakai localStorage.setItem lagi, tapi set() ke Firebase
+        // Agar mudah, kita simpan array full (walau tidak efisien utk data besar, tapi mudah utk pemula)
+        function simpanKeCloud(key, dataArray) {
+            // Konversi Array ke Object agar Firebase senang (Firebase lebih suka Object daripada Array murni)
+            const dataObj = {};
+            dataArray.forEach((item, index) => {
+                // Gunakan ID unik sebagai key jika ada, atau index
+                const k = item.id || item.id_transaksi || item.username || index;
+                dataObj[k] = item;
+            });
+            
+            set(ref(dbRealtime, key), dataObj)
+            .catch((err) => alert("Gagal simpan: " + err.message));
+        }
+        
+        // Wrapper agar kode lama mirip
+        window.saveAll = function() {
+            simpanKeCloud('stok_db', db);
+            simpanKeCloud('history_masuk', historyMasuk);
+            simpanKeCloud('history_keluar', historyKeluar);
+            simpanKeCloud('settings', appSettings);
+            simpanKeCloud('users_db', usersDb);
+        }
+
+        // --- LOGIN LOGIC ---
+        window.prosesLogin = function() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            // Cek ke usersDb yang sudah tersinkron dari Cloud
+            const found = usersDb.find(user => user.username === u && user.password === p);
+            
+            if(found) {
+                currentUser = found;
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('app-container').classList.add('active');
+                render();
+            } else {
+                alert("Username/Password Salah (Atau data belum tersinkron)");
+            }
+        }
+
+        window.prosesLogout = function() {
+            currentUser = null;
+            location.reload();
+        }
+
+        // --- CORE INVENTORY FUNCTIONS (Modifikasi untuk memanggil saveAll) ---
+        
+        window.tambahBarang = function() {
+            const id = document.getElementById('baru_id').value;
+            const nama = document.getElementById('baru_nama').value;
+            const stok = parseInt(document.getElementById('baru_stok').value)||0;
+            const harga = parseInt(document.getElementById('baru_harga').value)||0;
+            const satuan = document.getElementById('baru_satuan').value;
+            const tgl = document.getElementById('baru_tgl').value;
+            
+            if(!nama) return alert("Isi nama barang");
+            
+            db.push({ id, nama, stok, harga, satuan, tgl_masuk: tgl });
+            if(stok > 0) {
+                historyMasuk.unshift({ id_transaksi: Date.now(), tgl, id, nama, qty: stok, satuan, harga });
+            }
+            
+            alert("Tersimpan di Cloud!");
+            window.saveAll(); // Kirim ke Firebase
+            
+            // Reset form
+            document.getElementById('baru_nama').value = '';
+            document.getElementById('baru_stok').value = '0';
+        }
+
+        window.transaksiMasuk = function() {
+            const id = document.getElementById('masuk_id').value;
+            const qty = parseInt(document.getElementById('masuk_qty').value);
+            const tgl = document.getElementById('masuk_tgl').value;
+            const harga = parseInt(document.getElementById('masuk_harga').value);
+            
+            const item = db.find(x => x.id === id);
+            if(item && qty > 0) {
+                item.stok += qty;
+                if(harga) item.harga = harga;
+                historyMasuk.unshift({ id_transaksi: Date.now(), tgl, id, nama: item.nama, qty, satuan: item.satuan, harga: item.harga });
+                window.saveAll(); // Update Cloud
+                alert("Stok Masuk Tersimpan!");
+            }
+        }
+
+        window.transaksiKeluar = function() {
+            const id = document.getElementById('keluar_id').value;
+            const qty = parseInt(document.getElementById('keluar_qty').value);
+            const ket = document.getElementById('keluar_ket').value;
+            const tgl = document.getElementById('keluar_tgl').value;
+            
+            const item = db.find(x => x.id === id);
+            if(item && qty > 0) {
+                if(item.stok < qty) return alert("Stok kurang!");
+                item.stok -= qty;
+                historyKeluar.unshift({ id_transaksi: Date.now(), tgl, id, nama: item.nama, qty, satuan: item.satuan, ket });
+                window.saveAll(); // Update Cloud
+                alert("Stok Keluar Tersimpan!");
+            }
+        }
+
+        // --- EDIT DAN HAPUS (Logika Sinkronisasi Stok) ---
+        window.hapusBarang = function(id) {
+            if(confirm("Hapus barang ini dari database pusat?")) {
+                db = db.filter(x => x.id !== id);
+                window.saveAll();
+            }
+        }
+
+        window.hapusRiwayatMasuk = function(trxId) {
+            if(confirm("Batalkan riwayat masuk ini? Stok akan berkurang.")) {
+                const trx = historyMasuk.find(x => x.id_transaksi == trxId);
+                const item = db.find(x => x.id == trx.id);
+                if(item) {
+                    item.stok -= trx.qty;
+                    if(item.stok < 0) item.stok = 0;
+                }
+                historyMasuk = historyMasuk.filter(x => x.id_transaksi != trxId);
+                window.saveAll();
+            }
+        }
+
+        window.hapusRiwayatKeluar = function(trxId) {
+            if(confirm("Batalkan riwayat keluar ini? Stok akan kembali.")) {
+                const trx = historyKeluar.find(x => x.id_transaksi == trxId);
+                const item = db.find(x => x.id == trx.id);
+                if(item) item.stok += trx.qty;
+                historyKeluar = historyKeluar.filter(x => x.id_transaksi != trxId);
+                window.saveAll();
+            }
+        }
+
+        // --- USER MANAGEMENT ---
+        window.tambahUser = function() {
+            const u = document.getElementById('new_user').value;
+            const p = document.getElementById('new_pass').value;
+            const n = document.getElementById('new_name').value;
+            
+            if(usersDb.find(x => x.username === u)) return alert("Username ada!");
+            
+            usersDb.push({ username: u, password: p, name: n });
+            window.saveAll();
+            alert("User ditambahkan ke Database Pusat");
+        }
+        
+        window.hapusUser = function(u) {
+            if(confirm("Hapus user ini?")) {
+                usersDb = usersDb.filter(x => x.username !== u);
+                window.saveAll();
+            }
+        }
+
+        window.simpanPrefix = function() {
+            appSettings.id_prefix = document.getElementById('setting_prefix').value;
+            window.saveAll();
+            alert("Disimpan");
+        }
+
+        // --- RENDER & UI HELPER ---
+        function render() {
+            // Set Tanggal Hari ini
+            const today = new Date().toISOString().split('T')[0];
+            if(!document.getElementById('masuk_tgl').value) {
+                ['masuk_tgl','keluar_tgl','baru_tgl'].forEach(id => document.getElementById(id).value = today);
+            }
+
+            // Generate ID Otomatis
+            const prefix = appSettings.id_prefix || "XP";
+            document.getElementById('setting_prefix').value = prefix;
+            const count = db.filter(x => x.id.startsWith(prefix)).length + 1;
+            document.getElementById('baru_id').value = prefix + String(count).padStart(3, '0');
+
+            // Select Option
+            let opt = '<option value="">-- Pilih --</option>';
+            db.forEach(x => opt += `<option value="${x.id}">${x.nama} (Stok: ${x.stok})</option>`);
+            document.querySelectorAll('.select-barang').forEach(e => e.innerHTML = opt);
+
+            // Tabel Stok
+            document.querySelector('#tabel-stok tbody').innerHTML = db.map(x => `
+                <tr>
+                    <td>${x.id}</td><td>${x.nama}</td>
+                    <td style="font-weight:bold; color:${x.stok<5?'red':'green'}">${x.stok} ${x.satuan}</td>
+                    <td>${x.harga}</td><td>${x.stok * x.harga}</td>
+                    <td><button class="btn-danger" onclick="hapusBarang('${x.id}')"><i class="fas fa-trash"></i></button></td>
+                </tr>`).join('');
+            
+            // Tabel Riwayat
+            document.querySelector('#tabel-riwayat-masuk tbody').innerHTML = historyMasuk.slice(0,20).map(x => `
+                <tr><td>${x.tgl}</td><td>${x.nama}</td><td>${x.qty}</td>
+                <td><button class="btn-danger" onclick="hapusRiwayatMasuk('${x.id_transaksi}')">X</button></td></tr>`).join('');
+                
+            document.querySelector('#tabel-riwayat-keluar tbody').innerHTML = historyKeluar.slice(0,20).map(x => `
+                <tr><td>${x.tgl}</td><td>${x.nama}</td><td>${x.qty}</td>
+                <td><button class="btn-danger" onclick="hapusRiwayatKeluar('${x.id_transaksi}')">X</button></td></tr>`).join('');
+
+            // Dashboard
+            document.getElementById('dash-jenis').innerText = db.length;
+            document.getElementById('dash-total').innerText = db.reduce((a,b)=>a+b.stok,0);
+            document.getElementById('dash-aset').innerText = "Rp " + new Intl.NumberFormat('id-ID').format(db.reduce((a,b)=>a+(b.stok*b.harga),0));
+
+            // User List
+            document.getElementById('user-list').innerHTML = usersDb.map(u => 
+                `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px;">
+                    <span>${u.username} (${u.name})</span>
+                    ${u.username !== 'admin' ? `<button onclick="hapusUser('${u.username}')" style="padding:2px 5px; background:red;">Hapus</button>` : ''}
+                </div>`
+            ).join('');
+        }
+
+        window.autoFillSatuan = function(id) {
+            const i = db.find(x=>x.id==id);
+            if(i) document.getElementById('masuk_satuan').value = i.satuan;
+        }
+
+        window.navigasi = function(id, el) {
+            document.querySelectorAll('.section').forEach(x => x.style.display = 'none');
+            document.querySelectorAll('.nav-link').forEach(x => x.classList.remove('active'));
+            document.getElementById(id).style.display = 'block';
+            if(el) el.classList.add('active');
+        }
+        
+        window.cetakPDF = function() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Laporan Stok Online", 14, 15);
+            doc.autoTable({ 
+                head:[['ID','Nama','Stok','Harga','Aset']], 
+                body: db.map(r => [r.id, r.nama, r.stok, r.harga, r.stok*r.harga])
+            });
+            doc.save('Data_Online.pdf');
+        }
+
+        // Global function binding for PDF Autotable
+        window.jsPDF = window.jspdf;
+    </script>
+</body>
+</html>
